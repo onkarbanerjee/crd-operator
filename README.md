@@ -1,2 +1,2 @@
-# crd-custom-config
-crd-custom-config
+# crd-operator
+crd-operator
