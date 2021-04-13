@@ -23,9 +23,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "github.com/onkarbanerjee/crd-custom-config/pkg/client/clientset/versioned"
-	customconfig "github.com/onkarbanerjee/crd-custom-config/pkg/client/informers/externalversions/customconfig"
-	internalinterfaces "github.com/onkarbanerjee/crd-custom-config/pkg/client/informers/externalversions/internalinterfaces"
+	versioned "github.com/onkarbanerjee/crd-operator/pkg/client/clientset/versioned"
+	customconfig "github.com/onkarbanerjee/crd-operator/pkg/client/informers/externalversions/customconfig"
+	internalinterfaces "github.com/onkarbanerjee/crd-operator/pkg/client/informers/externalversions/internalinterfaces"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

@@ -1,7 +1,7 @@
 package v1
 
 import (
-	"github.com/onkarbanerjee/crd-custom-config/pkg/apis/customconfig"
+	"github.com/onkarbanerjee/crd-operator/pkg/apis/customconfig"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"

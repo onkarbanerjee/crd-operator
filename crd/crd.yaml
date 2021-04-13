@@ -1,0 +1,54 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: customconfigs.mtcil.com
+spec:
+  scope: Namespaced
+  group: mtcil.com
+  version: v1
+  names:
+    kind: CustomConfig
+    singular: customconfig
+    plural: customconfigs
+    shortNames:
+    - cc
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            key:
+              type: string
+              description: "Key for the Custom configs for mtcil"
+            value:
+              type: string
+              description: "Value for the Custom configs for mtcil"
+            configmapName:
+              type: string
+              description: "Name of the config map to be updated"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: customconfig-cluster-role
+rules:
+- apiGroups:
+  - mtcil.com
+  resources:
+  - customconfig
+  - customconfigs
+  - configconfig/finalizers
+  verbs: [ get, list, create, update, delete, deletecollection, watch ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+    name: "mtcil.com:customconfig:default-read"
+roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: customconfig-cluster-role
+subjects:
+    - kind: ServiceAccount
+      name: default
+      namespace: mtcil-operator

@@ -21,7 +21,7 @@ package versioned
 import (
 	"fmt"
 
-	mtcilv1 "github.com/onkarbanerjee/crd-custom-config/pkg/client/clientset/versioned/typed/customconfig/v1"
+	mtcilv1 "github.com/onkarbanerjee/crd-operator/pkg/client/clientset/versioned/typed/customconfig/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

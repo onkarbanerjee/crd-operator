@@ -19,7 +19,7 @@ limitations under the License.
 package scheme
 
 import (
-	mtcilv1 "github.com/onkarbanerjee/crd-custom-config/pkg/apis/customconfig/v1"
+	mtcilv1 "github.com/onkarbanerjee/crd-operator/pkg/apis/customconfig/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

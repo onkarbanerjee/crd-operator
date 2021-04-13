@@ -19,8 +19,8 @@ limitations under the License.
 package v1
 
 import (
-	v1 "github.com/onkarbanerjee/crd-custom-config/pkg/apis/customconfig/v1"
-	"github.com/onkarbanerjee/crd-custom-config/pkg/client/clientset/versioned/scheme"
+	v1 "github.com/onkarbanerjee/crd-operator/pkg/apis/customconfig/v1"
+	"github.com/onkarbanerjee/crd-operator/pkg/client/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 

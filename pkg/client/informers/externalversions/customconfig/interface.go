@@ -19,8 +19,8 @@ limitations under the License.
 package customconfig
 
 import (
-	v1 "github.com/onkarbanerjee/crd-custom-config/pkg/client/informers/externalversions/customconfig/v1"
-	internalinterfaces "github.com/onkarbanerjee/crd-custom-config/pkg/client/informers/externalversions/internalinterfaces"
+	v1 "github.com/onkarbanerjee/crd-operator/pkg/client/informers/externalversions/customconfig/v1"
+	internalinterfaces "github.com/onkarbanerjee/crd-operator/pkg/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.

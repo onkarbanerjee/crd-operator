@@ -1,4 +1,4 @@
-module github.com/onkarbanerjee/crd-custom-config
+module github.com/onkarbanerjee/crd-operator
 
 go 1.15
 

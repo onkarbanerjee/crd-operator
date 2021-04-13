@@ -1,9 +1,11 @@
-package main
+package controller
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
+	"github.com/onkarbanerjee/crd-operator/handler"
 	log "github.com/sirupsen/logrus"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -12,15 +14,67 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
+const (
+	CREATED Event_type = "created"
+	UPDATED Event_type = "updated"
+	DELETED Event_type = "deleted"
+)
+
+// Event_type denotes whether the event was a create/update/delete event
+type Event_type string
+
+type DeletedItems struct {
+	sync.RWMutex
+	M map[string]interface{}
+}
+
+// Item denotes an item being tracked in queue
+type Item struct {
+	Key string
+	Event_type
+}
+
 // Controller struct defines how a controller should encapsulate
 // logging, client connectivity, informing (list and watching)
 // queueing, and handling of resource changes
 type Controller struct {
-	logger    *log.Entry
-	clientset kubernetes.Interface
-	queue     workqueue.RateLimitingInterface
-	informer  cache.SharedIndexInformer
-	handler   Handler
+	logger       *log.Entry
+	name         string
+	clientset    kubernetes.Interface
+	queue        workqueue.RateLimitingInterface
+	informer     cache.SharedIndexInformer
+	handler      handler.Handler
+	deletedItems *DeletedItems
+}
+
+func (d *DeletedItems) Get(key string) interface{} {
+	d.RLock()
+	defer d.RUnlock()
+	return d.M[key]
+}
+
+func (d *DeletedItems) Add(key string, obj interface{}) {
+	d.Lock()
+	defer d.Unlock()
+	d.M[key] = obj
+}
+
+func (d *DeletedItems) Delete(key string) {
+	d.Lock()
+	defer d.Unlock()
+	delete(d.M, key)
+}
+
+func New(name string, client kubernetes.Interface, informer cache.SharedIndexInformer, queue workqueue.RateLimitingInterface, handler handler.Handler, deletedItems *DeletedItems) *Controller {
+	return &Controller{
+		logger:       log.NewEntry(log.New()),
+		name:         name,
+		clientset:    client,
+		informer:     informer,
+		queue:        queue,
+		handler:      handler,
+		deletedItems: deletedItems,
+	}
 }
 
 // Run is the main path of execution for the controller loop
@@ -37,7 +91,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) {
 	go c.informer.Run(stopCh)
 
 	// do the initial synchronization (one time) to populate resources
-	if !cache.WaitForCacheSync(stopCh, c.HasSynced) {
+	if !cache.WaitForNamedCacheSync(c.name, stopCh, c.HasSynced) {
 		utilruntime.HandleError(fmt.Errorf("Error syncing cache"))
 		return
 	}
@@ -86,8 +140,12 @@ func (c *Controller) processNextItem() bool {
 
 	defer c.queue.Done(key)
 
+	i, ok := key.(*Item)
+	log.Info("i ok is", ok)
+	log.Info("i is", i.Key, i.Event_type)
+
 	// assert the string out of the key (format `namespace/name`)
-	keyRaw := key.(string)
+	// keyRaw := key.(string)
 
 	// take the string key and get the object out of the indexer
 	//
@@ -99,7 +157,11 @@ func (c *Controller) processNextItem() bool {
 	// then we want to retry this particular queue key a certain
 	// number of times (5 here) before we forget the queue key
 	// and throw an error
-	item, exists, err := c.informer.GetIndexer().GetByKey(keyRaw)
+	item, exists, err := c.informer.GetIndexer().GetByKey(i.Key)
+
+	// log.Info(item.(*v1.CustomConfig))
+
+	log.Info(exists, err)
 	if err != nil {
 		if c.queue.NumRequeues(key) < 5 {
 			c.logger.Errorf("Controller.processNextItem: Failed processing item with key %s with error %v, retrying", key, err)
@@ -111,21 +173,35 @@ func (c *Controller) processNextItem() bool {
 		}
 	}
 
+	switch i.Event_type {
+	case CREATED:
+		c.logger.Infof("Controller.processNextItem: object created detected: %s", i.Key)
+		c.handler.ObjectCreated(item)
+		c.queue.Forget(key)
+	case UPDATED:
+		c.logger.Infof("Controller.processNextItem: object updated detected: %s", i.Key)
+		c.handler.ObjectUpdated(item)
+		c.queue.Forget(key)
+	case DELETED:
+		c.logger.Infof("Controller.processNextItem: object deleted detected: %s", i.Key)
+		c.handler.ObjectDeleted(c.deletedItems.Get(i.Key))
+		c.queue.Forget(key)
+	}
 	// if the item doesn't exist then it was deleted and we need to fire off the handler's
 	// ObjectDeleted method. but if the object does exist that indicates that the object
 	// was created (or updated) so run the ObjectCreated method
 	//
 	// after both instances, we want to forget the key from the queue, as this indicates
 	// a code path of successful queue key processing
-	if !exists {
-		c.logger.Infof("Controller.processNextItem: object deleted detected: %s", keyRaw)
-		c.handler.ObjectDeleted(item)
-		c.queue.Forget(key)
-	} else {
-		c.logger.Infof("Controller.processNextItem: object created detected: %s", keyRaw)
-		c.handler.ObjectCreated(item)
-		c.queue.Forget(key)
-	}
+	// if !exists {
+	// 	c.logger.Infof("Controller.processNextItem: object deleted detected: %s", i.key)
+	// 	c.handler.ObjectDeleted(item)
+	// 	c.queue.Forget(key)
+	// } else {
+	// 	c.logger.Infof("Controller.processNextItem: object created detected: %s", i.key)
+	// 	c.handler.ObjectCreated(item)
+	// 	c.queue.Forget(key)
+	// }
 
 	// keep the worker loop running by returning true
 	return true

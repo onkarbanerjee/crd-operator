@@ -5,11 +5,14 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/onkarbanerjee/crd-custom-config/pkg/client/clientset/versioned"
-	v1 "github.com/onkarbanerjee/crd-custom-config/pkg/client/informers/externalversions/customconfig/v1"
+	"github.com/onkarbanerjee/crd-operator/controller"
+	"github.com/onkarbanerjee/crd-operator/handler"
+	"github.com/onkarbanerjee/crd-operator/pkg/client/clientset/versioned"
+	v1 "github.com/onkarbanerjee/crd-operator/pkg/client/informers/externalversions/customconfig/v1"
 	log "github.com/sirupsen/logrus"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/workqueue"
@@ -23,7 +26,11 @@ func getKubernetesClient() (kubernetes.Interface, versioned.Interface) {
 	// create the config from the path
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
-		log.Fatalf("getClusterConfig: %v", err)
+		log.Error("getClusterConfig: %v", err)
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			log.Fatalf("getClusterConfig: %v", err)
+		}
 	}
 
 	// generate the client based off of the config
@@ -61,6 +68,9 @@ func main() {
 	// so that it can be handled in the handler
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 
+	deletedItems := &controller.DeletedItems{
+		M: map[string]interface{}{},
+	}
 	// add event handlers to handle the three types of events for resources:
 	//  - adding new resources
 	//  - updating existing resources
@@ -71,16 +81,24 @@ func main() {
 			// we are just doing it in the format of 'namespace/name')
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			log.Infof("Add customconfig: %s", key)
+			i := &controller.Item{
+				Key:        key,
+				Event_type: controller.CREATED,
+			}
 			if err == nil {
 				// add the key to the queue for the handler to get
-				queue.Add(key)
+				queue.Add(i)
 			}
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(newObj)
 			log.Infof("Update customconfig: %s", key)
+			i := &controller.Item{
+				Key:        key,
+				Event_type: controller.UPDATED,
+			}
 			if err == nil {
-				queue.Add(key)
+				queue.Add(i)
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -91,8 +109,13 @@ func main() {
 			// this then in turn calls MetaNamespaceKeyFunc
 			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 			log.Infof("Delete customconfig: %s", key)
+			deletedItems.Add(key, obj)
+			i := &controller.Item{
+				Key:        key,
+				Event_type: controller.DELETED,
+			}
 			if err == nil {
-				queue.Add(key)
+				queue.Add(i)
 			}
 		},
 	})
@@ -100,22 +123,27 @@ func main() {
 	// construct the Controller object which has all of the necessary components to
 	// handle logging, connections, informing (listing and watching), the queue,
 	// and the handler
-	controller := Controller{
-		logger:    log.NewEntry(log.New()),
-		clientset: client,
-		informer:  informer,
-		queue:     queue,
-		handler: &TestHandler{
-			Client: client,
-		},
+	// controller := controller.Controller{
+	// 	logger:    log.NewEntry(log.New()),
+	// 	clientset: client,
+	// 	informer:  informer,
+	// 	queue:     queue,
+	// 	handler: &handlers.CCHandler{
+	// 		Client: client,
+	// 	},
+	// }
+
+	ccHandler := &handler.CCHandler{
+		Client: client,
 	}
 
+	ccController := controller.New("custom-config-controller", client, informer, queue, ccHandler, deletedItems)
 	// use a channel to synchronize the finalization for a graceful shutdown
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
 	// run the controller loop to process items
-	go controller.Run(stopCh)
+	go ccController.Run(stopCh)
 
 	// use a channel to handle OS signals to terminate and gracefully shut
 	// down processing

@@ -21,7 +21,7 @@ package fake
 import (
 	"context"
 
-	customconfigv1 "github.com/onkarbanerjee/crd-custom-config/pkg/apis/customconfig/v1"
+	customconfigv1 "github.com/onkarbanerjee/crd-operator/pkg/apis/customconfig/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
